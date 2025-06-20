@@ -51,8 +51,7 @@ No rollback needed, as the containers will be restarted by Kubernetes automatica
 
 ### What
 
-Use `lib_k8s.deploy_hog` to deploy hog pods, and then sleep `duration` seconds.
-While sleeping, will also collects the CPU, Memory, Disk space sample for the nodes.
+Use `lib_k8s.deploy_hog` to deploy hog pods, and then sleep `duration` seconds. While sleeping, will also collects the CPU, Memory, Disk space sample for the nodes.
 
 ### Rollback
 
@@ -335,6 +334,8 @@ The plugin must restore the correct system time after the scenario to prevent co
 ### What
 
 Simulates a failure in an entire availability zone/region by either:
+
+
 1. Stopping all nodes in the zone (for GCP)
 2. Implementing network ACL blocks (for AWS)
 The scenario maintains the outage for a specified duration before recovery.
