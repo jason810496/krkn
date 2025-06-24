@@ -40,3 +40,12 @@
         - handles complex types (e.g., functions, classes)
     - cons:
         - not human-readable
+
+
+----
+
+Suggestion
+- graceful shutdown
+- add command option
+    - dry run option
+- folder_prefix -> replace with run uuid
