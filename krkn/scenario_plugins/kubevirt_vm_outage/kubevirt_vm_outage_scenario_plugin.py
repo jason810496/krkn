@@ -12,6 +12,8 @@ from krkn_lib.utils import log_exception
 from krkn_lib.models.k8s import AffectedPod, PodsStatus
 
 from krkn.scenario_plugins.abstract_scenario_plugin import AbstractScenarioPlugin
+from krkn.rollback.config import RollbackContent
+from krkn.rollback.handler import set_rollback_context_decorator
 
 
 class KubevirtVmOutageScenarioPlugin(AbstractScenarioPlugin):
@@ -29,6 +31,7 @@ class KubevirtVmOutageScenarioPlugin(AbstractScenarioPlugin):
     def get_scenario_types(self) -> list[str]:
         return ["kubevirt_vm_outage"]
 
+    @set_rollback_context_decorator
     def run(
         self,
         run_uuid: str,
@@ -398,3 +401,18 @@ class KubevirtVmOutageScenarioPlugin(AbstractScenarioPlugin):
             logging.error(f"Unexpected error recovering VMI {vm_name}: {e}")
             log_exception(e)
             return 1
+        
+    @staticmethod
+    def rollback_vmi(rollback_content: RollbackContent, lib_telemetry: KrknTelemetryOpenshift):
+        vm_name = rollback_content.resource_identifier
+        namespace = rollback_content.namespace
+
+        custom_object_client = lib_telemetry.get_lib_kubernetes().custom_object_client
+        # Create the VMI
+        custom_object_client.create_namespaced_custom_object(
+            group="kubevirt.io",
+            version="v1",
+            namespace=namespace,
+            plural="virtualmachineinstances",
+            body=vmi_dict
+        )
