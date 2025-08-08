@@ -11,6 +11,7 @@ import uuid
 import time
 import queue
 import threading
+from typing import Optional
 
 from krkn_lib.elastic.krkn_elastic import KrknElastic
 from krkn_lib.models.elastic import ElasticChaosRunTelemetry
@@ -33,6 +34,10 @@ from krkn.scenario_plugins.scenario_plugin_factory import (
     ScenarioPluginNotFound,
 )
 from krkn.rollback.config import RollbackConfig
+from krkn.rollback.command import (
+    list_rollback as list_rollback_command,
+    execute_rollback as execute_rollback_command,
+)
 
 # removes TripleDES warning
 import warnings
@@ -40,13 +45,13 @@ warnings.filterwarnings(action='ignore', module='.*paramiko.*')
 
 report_file = ""
 
-
 # Main function
-def main(cfg) -> int:
+def main(options, command: Optional[str]) -> int:
     # Start kraken
     print(pyfiglet.figlet_format("kraken"))
     logging.info("Starting kraken")
 
+    cfg = options.cfg
     # Parse and read the config
     if os.path.isfile(cfg):
         with open(cfg, "r") as f:
@@ -243,6 +248,19 @@ def main(cfg) -> int:
             prometheus = KrknPrometheus(prometheus_url, prometheus_bearer_token)
 
         logging.info("Server URL: %s" % kubecli.get_host())
+
+        if command == "list-rollback":
+            sys.exit(
+                list_rollback_command(
+                    options.run_uuid, options.scenario_type
+                )
+            )
+        elif command == "execute-rollback":
+            sys.exit(
+                execute_rollback_command(
+                    telemetry_ocp, options.run_uuid, options.scenario_type
+                )
+            )
 
         # Initialize the start iteration to 0
         iteration = 0
@@ -532,7 +550,13 @@ def main(cfg) -> int:
 
 if __name__ == "__main__":
     # Initialize the parser to read the config
-    parser = optparse.OptionParser()
+    parser = optparse.OptionParser(
+        usage="%prog [options] [command]\n\n"
+              "Commands:\n"
+              "  list-rollback     List rollback version files in a tree-like format\n"
+              "  execute-rollback  Execute rollback version files and cleanup if successful\n\n"
+              "If no command is specified, kraken will run chaos scenarios.",
+    )
     parser.add_option(
         "-c",
         "--config",
@@ -569,7 +593,26 @@ if __name__ == "__main__":
         default=None,
     )
 
+    # Add rollback command options
+    parser.add_option(
+        "-r",
+        "--run_uuid",
+        dest="run_uuid",
+        help="run UUID to filter rollback operations",
+        default=None,
+    )
+
+    parser.add_option(
+        "-s",
+        "--scenario_type",
+        dest="scenario_type",
+        help="scenario type to filter rollback operations",
+        default=None,
+    )
+
     (options, args) = parser.parse_args()
+    
+    # If no command or regular execution, continue with existing logic
     report_file = options.output
     tee_handler = TeeLogHandler()
     handlers = [
@@ -638,7 +681,9 @@ if __name__ == "__main__":
     if option_error:
         retval = 1
     else:
-        retval = main(options.cfg)
+        # Check if command is provided as positional argument
+        command = args[0] if args else None
+        retval = main(options, command)
 
     junit_endtime = time.time()
 
